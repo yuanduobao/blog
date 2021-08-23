@@ -1775,6 +1775,228 @@ pg_w2m_decode_change(LogicalDecodingContext *ctx, ReorderBufferTXN *txn,
 
 ## 调用方法
 
+### 可用参数
+
+#### 事务模式-`use_transaction`
+
+如果生成的MongoDB语句需要使用事务模式，在可以设置参数`use_transaction`。开启事务模式后，生成的MongoDB语句类似如下。该参数是的数据类型是bool，可以输入的参数值是：
+
+- true
+- false
+
+
+
+![image-20210823141547237](images/image-20210823141547237.png)
+
+
+
+#### 是否包含postgresql的集群名-`include_cluster_name`
+
+如果生成的MongoDB的数据库名要包含postgresql的集群名，则可以设置该参数。当postgresql数据库没有设置集群名时，则使用`mydb`代替：
+
+该参数是的数据类型是bool，可以输入的参数值是：
+
+- true
+- false
+
+
+
+![image-20210823142316484](images/image-20210823142316484.png)
+
+
+
+```sql
+postgres=# show cluster_name ;
+ cluster_name 
+--------------
+ pg12cluster
+(1 row)
+
+postgres=# 
+```
+
+
+
+#### 步骤哪些dml语句-`action`
+
+该参数是的取值字符串，可以是以下任意取值的组合，使用英文逗号分隔。
+
+- insert    
+- delete
+- update
+
+
+
+如果没有指定该参数，则默认解析所有的dml语句：
+
+```sql
+postgres=# SELECT * FROM pg_logical_slot_peek_changes('w2m_slot', NULL, NULL,'actions','delete');  
+    lsn     |  xid   |                          data                           
+------------+--------+---------------------------------------------------------
+ 0/21008550 | 203083 | use pg12cluster_postgres_w2m_slot;
+ 0/21008550 | 203083 | db.test_wal2mongo.deleteOne( { id: NumberInt("1") } );
+ 0/21008670 | 203084 | use pg12cluster_postgres_w2m_slot;
+ 0/21008670 | 203084 | db.test_wal2mongo.deleteOne( { id: NumberInt("12") } );
+(4 rows)
+
+postgres=# SELECT * FROM pg_logical_slot_peek_changes('w2m_slot', NULL, NULL,'actions','insert');  
+    lsn     |  xid   |                                                  data                                                  
+------------+--------+--------------------------------------------------------------------------------------------------------
+ 0/210086E8 | 203084 | use pg12cluster_postgres_w2m_slot;use pg12cluster_postgres_w2m_slot;use pg12cluster_postgres_w2m_slot;
+ 0/210086E8 | 203084 | db.test_wal2mongo.insertOne( { id: NumberInt("3"), name:"3333", age: NumberInt("55") } );
+ 0/210087D0 | 203084 | use pg12cluster_postgres_w2m_slot;
+ 0/210087D0 | 203084 | db.test_wal2mongo.insertOne( { id: NumberInt("4"), name:"yuandb", age: NumberInt("55") } );
+ 0/21008858 | 203084 | use pg12cluster_postgres_w2m_slot;
+ 0/21008858 | 203084 | db.test_wal2mongo.insertOne( { id: NumberInt("5"), name:"Lisi", age: NumberInt("55") } );
+ 0/21008918 | 203084 | use pg12cluster_postgres_w2m_slot;
+ 0/21008918 | 203084 | db.test_wal2mongo.insertOne( { id: NumberInt("6"), name:"Tom", age: NumberInt("45") } );
+(8 rows)
+
+postgres=# SELECT * FROM pg_logical_slot_peek_changes('w2m_slot', NULL, NULL,'actions','insert,delete');  
+    lsn     |  xid   |                                            data                                             
+------------+--------+---------------------------------------------------------------------------------------------
+ 0/21008550 | 203083 | use pg12cluster_postgres_w2m_slot;
+ 0/21008550 | 203083 | db.test_wal2mongo.deleteOne( { id: NumberInt("1") } );
+ 0/21008670 | 203084 | use pg12cluster_postgres_w2m_slot;
+ 0/21008670 | 203084 | db.test_wal2mongo.deleteOne( { id: NumberInt("12") } );
+ 0/210086E8 | 203084 | use pg12cluster_postgres_w2m_slot;
+ 0/210086E8 | 203084 | db.test_wal2mongo.insertOne( { id: NumberInt("3"), name:"3333", age: NumberInt("55") } );
+ 0/210087D0 | 203084 | use pg12cluster_postgres_w2m_slot;
+ 0/210087D0 | 203084 | db.test_wal2mongo.insertOne( { id: NumberInt("4"), name:"yuandb", age: NumberInt("55") } );
+ 0/21008858 | 203084 | use pg12cluster_postgres_w2m_slot;
+ 0/21008858 | 203084 | db.test_wal2mongo.insertOne( { id: NumberInt("5"), name:"Lisi", age: NumberInt("55") } );
+ 0/21008918 | 203084 | use pg12cluster_postgres_w2m_slot;
+ 0/21008918 | 203084 | db.test_wal2mongo.insertOne( { id: NumberInt("6"), name:"Tom", age: NumberInt("45") } );
+(12 rows)
+
+postgres=# 
+```
+
+
+
+#### 包含哪些表-`include_tables`
+
+如果只想解析指定的表，可以使用该参数指定具体的表名，该参数可以指定多个表，表名使用英文逗号分隔开：
+
+```sql
+postgres=# SELECT * FROM pg_logical_slot_peek_changes('w2m_slot', NULL, NULL);  
+    lsn     |  xid   |                                            data                                             
+------------+--------+---------------------------------------------------------------------------------------------
+ 0/21008550 | 203083 | use pg12cluster_postgres_w2m_slot;
+ 0/21008550 | 203083 | db.test_wal2mongo.deleteOne( { id: NumberInt("1") } );
+ 0/21008670 | 203084 | use pg12cluster_postgres_w2m_slot;
+ 0/21008670 | 203084 | db.test_wal2mongo.deleteOne( { id: NumberInt("12") } );
+ 0/210086E8 | 203084 | use pg12cluster_postgres_w2m_slot;
+ 0/210086E8 | 203084 | db.test_wal2mongo.insertOne( { id: NumberInt("3"), name:"3333", age: NumberInt("55") } );
+ 0/210087D0 | 203084 | use pg12cluster_postgres_w2m_slot;
+ 0/210087D0 | 203084 | db.test_wal2mongo.insertOne( { id: NumberInt("4"), name:"yuandb", age: NumberInt("55") } );
+ 0/21008858 | 203084 | use pg12cluster_postgres_w2m_slot;
+ 0/21008858 | 203084 | db.test_wal2mongo.insertOne( { id: NumberInt("5"), name:"Lisi", age: NumberInt("55") } );
+ 0/21008918 | 203084 | use pg12cluster_postgres_w2m_slot;
+ 0/21008918 | 203084 | db.test_wal2mongo.insertOne( { id: NumberInt("6"), name:"Tom", age: NumberInt("45") } );
+ 0/21008AF0 | 203085 | use pg12cluster_postgres_w2m_slot;
+ 0/21008AF0 | 203085 | db.books.deleteOne( { id: NumberInt("1") } );
+(14 rows)
+
+postgres=# 
+postgres=# 
+postgres=# SELECT * FROM pg_logical_slot_peek_changes('w2m_slot', NULL, NULL,'include_tables','test_wal2mongo');  
+    lsn     |  xid   |                                            data                                             
+------------+--------+---------------------------------------------------------------------------------------------
+ 0/21008550 | 203083 | use pg12cluster_postgres_w2m_slot;
+ 0/21008550 | 203083 | db.test_wal2mongo.deleteOne( { id: NumberInt("1") } );
+ 0/21008670 | 203084 | use pg12cluster_postgres_w2m_slot;
+ 0/21008670 | 203084 | db.test_wal2mongo.deleteOne( { id: NumberInt("12") } );
+ 0/210086E8 | 203084 | use pg12cluster_postgres_w2m_slot;
+ 0/210086E8 | 203084 | db.test_wal2mongo.insertOne( { id: NumberInt("3"), name:"3333", age: NumberInt("55") } );
+ 0/210087D0 | 203084 | use pg12cluster_postgres_w2m_slot;
+ 0/210087D0 | 203084 | db.test_wal2mongo.insertOne( { id: NumberInt("4"), name:"yuandb", age: NumberInt("55") } );
+ 0/21008858 | 203084 | use pg12cluster_postgres_w2m_slot;
+ 0/21008858 | 203084 | db.test_wal2mongo.insertOne( { id: NumberInt("5"), name:"Lisi", age: NumberInt("55") } );
+ 0/21008918 | 203084 | use pg12cluster_postgres_w2m_slot;
+ 0/21008918 | 203084 | db.test_wal2mongo.insertOne( { id: NumberInt("6"), name:"Tom", age: NumberInt("45") } );
+(12 rows)
+
+postgres=# 
+```
+
+
+
+#### 排除指定的表-`exclude_tables`
+
+该参数是指定哪些表的sql语句不用解析：
+
+```sql
+postgres=# SELECT * FROM pg_logical_slot_peek_changes('w2m_slot', NULL, NULL,'exclude_tables','books');  
+    lsn     |  xid   |                                            data                                             
+------------+--------+---------------------------------------------------------------------------------------------
+ 0/21008550 | 203083 | use pg12cluster_postgres_w2m_slot;
+ 0/21008550 | 203083 | db.test_wal2mongo.deleteOne( { id: NumberInt("1") } );
+ 0/21008670 | 203084 | use pg12cluster_postgres_w2m_slot;
+ 0/21008670 | 203084 | db.test_wal2mongo.deleteOne( { id: NumberInt("12") } );
+ 0/210086E8 | 203084 | use pg12cluster_postgres_w2m_slot;
+ 0/210086E8 | 203084 | db.test_wal2mongo.insertOne( { id: NumberInt("3"), name:"3333", age: NumberInt("55") } );
+ 0/210087D0 | 203084 | use pg12cluster_postgres_w2m_slot;
+ 0/210087D0 | 203084 | db.test_wal2mongo.insertOne( { id: NumberInt("4"), name:"yuandb", age: NumberInt("55") } );
+ 0/21008858 | 203084 | use pg12cluster_postgres_w2m_slot;
+ 0/21008858 | 203084 | db.test_wal2mongo.insertOne( { id: NumberInt("5"), name:"Lisi", age: NumberInt("55") } );
+ 0/21008918 | 203084 | use pg12cluster_postgres_w2m_slot;
+ 0/21008918 | 203084 | db.test_wal2mongo.insertOne( { id: NumberInt("6"), name:"Tom", age: NumberInt("45") } );
+(12 rows)
+
+postgres=# SELECT * FROM pg_logical_slot_peek_changes('w2m_slot', NULL, NULL,'exclude_tables','books,test_wal2mongo');  
+ lsn | xid | data 
+-----+-----+------
+(0 rows)
+
+postgres=# 
+```
+
+
+
+#### 指定只解析指定的db-`include_databases`
+
+```sql
+postgres=# SELECT * FROM pg_logical_slot_peek_changes('w2m_slot', NULL, NULL,'exclude_tables','books,test_wal2mongo');  
+ lsn | xid | data 
+-----+-----+------
+(0 rows)
+
+postgres=# SELECT * FROM pg_logical_slot_peek_changes('w2m_slot', NULL, NULL,'exclude_databases','postgres');  
+ lsn | xid | data 
+-----+-----+------
+(0 rows)
+
+postgres=# SELECT * FROM pg_logical_slot_peek_changes('w2m_slot', NULL, NULL,'include_databases','postgres');  
+    lsn     |  xid   |                                            data                                             
+------------+--------+---------------------------------------------------------------------------------------------
+ 0/21008550 | 203083 | use pg12cluster_postgres_w2m_slot;
+ 0/21008550 | 203083 | db.test_wal2mongo.deleteOne( { id: NumberInt("1") } );
+ 0/21008670 | 203084 | use pg12cluster_postgres_w2m_slot;
+ 0/21008670 | 203084 | db.test_wal2mongo.deleteOne( { id: NumberInt("12") } );
+ 0/210086E8 | 203084 | use pg12cluster_postgres_w2m_slot;
+ 0/210086E8 | 203084 | db.test_wal2mongo.insertOne( { id: NumberInt("3"), name:"3333", age: NumberInt("55") } );
+ 0/210087D0 | 203084 | use pg12cluster_postgres_w2m_slot;
+ 0/210087D0 | 203084 | db.test_wal2mongo.insertOne( { id: NumberInt("4"), name:"yuandb", age: NumberInt("55") } );
+ 0/21008858 | 203084 | use pg12cluster_postgres_w2m_slot;
+ 0/21008858 | 203084 | db.test_wal2mongo.insertOne( { id: NumberInt("5"), name:"Lisi", age: NumberInt("55") } );
+ 0/21008918 | 203084 | use pg12cluster_postgres_w2m_slot;
+ 0/21008918 | 203084 | db.test_wal2mongo.insertOne( { id: NumberInt("6"), name:"Tom", age: NumberInt("45") } );
+ 0/21008AF0 | 203085 | use pg12cluster_postgres_w2m_slot;
+ 0/21008AF0 | 203085 | db.books.deleteOne( { id: NumberInt("1") } );
+(14 rows)
+
+postgres=# 
+```
+
+
+
+#### 排除指定的db-`exclude_databases`
+
+
+
+
+
 ### 通过pg的逻辑复制管理函数调用
 
 ### 函数`pg_logical_slot_peek_ changes()`
