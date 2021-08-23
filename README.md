@@ -62,7 +62,7 @@ C02YF15AJG5J:pglogical yuandb$
 ```
 
 
-## 推送本地文件到gitfuwuq 
+## 推送本地文件到git服务器
 ```sh
 C02YF15AJG5J:pglogical yuandb$ git push
 Enumerating objects: 10, done.
@@ -77,10 +77,3 @@ To github.com:yuanduobao/blog.git
 C02YF15AJG5J:pglogical yuandb$
 ```
 
-
-# push an existing repository from the command line
-```
-git remote add origin git@github.com/yuanduobao/blog.git
-git branch -M main
-git push -u origin main
-```
